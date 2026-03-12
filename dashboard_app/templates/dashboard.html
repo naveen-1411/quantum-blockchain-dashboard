@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum-Resistant Blockchain Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>⛓️ Quantum-Resistant Blockchain Explorer</h1>
+                <p class="subtitle">CRYSTALS-Kyber1024 + CRYSTALS-Dilithium3 | PBFT Consensus</p>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Chain Height</span>
+                    <span class="stat-value" id="chain-height">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Blocks</span>
+                    <span class="stat-value" id="total-blocks">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total Transactions</span>
+                    <span class="stat-value" id="total-transactions">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Pending</span>
+                    <span class="stat-value" id="pending-txs">-</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="explorer">🔍 Explorer</button>
+        <button class="tab-btn" data-tab="transactions">📋 Transactions</button>
+        <button class="tab-btn" data-tab="wallets">💰 Wallets</button>
+        <button class="tab-btn" data-tab="nodes">🌐 Nodes</button>
+        <button class="tab-btn" data-tab="metrics">📊 Metrics</button>
+        <button class="tab-btn" data-tab="tools">🔧 Tools</button>
+    </nav>
+
+    <main class="container">
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 1: BLOCKCHAIN EXPLORER -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="explorer" class="tab-content active">
+            <h2>📦 Blockchain Ledger</h2>
+            <div class="section-description">
+                View all blocks in the blockchain with their headers and transactions.
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="loadBlocks()">🔄 Refresh Blocks</button>
+            </div>
+
+            <div class="blocks-container" id="blocks-container">
+                <div class="loading">Loading blocks...</div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 2: TRANSACTIONS -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="transactions" class="tab-content">
+            <h2>💳 Transaction Monitor</h2>
+            
+            <div class="transaction-tabs">
+                <button class="transaction-tab-btn active" data-sub-tab="confirmed">✅ Confirmed</button>
+                <button class="transaction-tab-btn" data-sub-tab="pending">⏳ Pending (Mempool)</button>
+                <button class="transaction-tab-btn" data-sub-tab="create">➕ Create New</button>
+            </div>
+
+            <!-- Confirmed Transactions -->
+            <div id="confirmed" class="sub-tab-content active">
+                <h3>Confirmed Transactions</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="loadTransactions()">🔄 Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="transactions-table">
+                        <thead>
+                            <tr>
+                                <th>Hash</th>
+                                <th>Sender</th>
+                                <th>Receiver</th>
+                                <th>Amount</th>
+                                <th>Fee</th>
+                                <th>Block</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-tbody">
+                            <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Pending Transactions -->
+            <div id="pending" class="sub-tab-content">
+                <h3>Pending in Mempool</h3>
+                <div class="controls">
+                    <button class="btn btn-primary" onclick="loadMempool()">🔄 Refresh</button>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table" id="mempool-table">
+                        <thead>
+                            <tr>
+                                <th>Hash</th>
+                                <th>Sender</th>
+                                <th>Receiver</th>
+                                <th>Amount</th>
+                                <th>Fee</th>
+                                <th>Age (s)</th>
+                                <th>Priority</th>
+                            </tr>
+                        </thead>
+                        <tbody id="mempool-tbody">
+                            <tr><td colspan="7" class="text-center">Loading...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Create Transaction Form -->
+            <div id="create" class="sub-tab-content">
+                <h3>Create New Transaction</h3>
+                <form id="transaction-form" class="form">
+                    <div class="form-group">
+                        <label for="sender">Sender:</label>
+                        <select id="sender" name="sender" required>
+                            <option value="">-- Select Sender --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="receiver">Receiver:</label>
+                        <select id="receiver" name="receiver" required>
+                            <option value="">-- Select Receiver --</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">Amount (₹):</label>
+                        <input type="number" id="amount" name="amount" min="0.001" step="0.001" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="fee">Fee (₹):</label>
+                        <input type="number" id="fee" name="fee" min="0.001" step="0.001" value="0.001" required>
+                    </div>
+                    <button type="submit" class="btn btn-success">✓ Create Transaction</button>
+                </form>
+                <div id="transaction-result" style="display: none;" class="alert"></div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 3: WALLETS -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="wallets" class="tab-content">
+            <h2>💰 Wallet Dashboard</h2>
+            <div class="section-description">
+                Overview of all wallets in the network with balances and key information.
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="loadWallets()">🔄 Refresh Wallets</button>
+            </div>
+
+            <div class="wallets-grid" id="wallets-grid">
+                <div class="loading">Loading wallets...</div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 4: NODES -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="nodes" class="tab-content">
+            <h2>🌐 Node Network</h2>
+            <div class="section-description">
+                Network topology with node status and roles.
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="loadNodes()">🔄 Refresh Nodes</button>
+            </div>
+
+            <div class="table-responsive">
+                <table class="data-table" id="nodes-table">
+                    <thead>
+                        <tr>
+                            <th>Node Name</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Address</th>
+                            <th>Balance</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nodes-tbody">
+                        <tr><td colspan="5" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 style="margin-top: 40px;">📊 Network Consensus Model</h3>
+            <div class="consensus-info">
+                <div class="consensus-phase">
+                    <h4>Phase 1: PRE-PREPARE</h4>
+                    <p>Proposer broadcasts block to all validators</p>
+                </div>
+                <div class="consensus-phase">
+                    <h4>Phase 2: PREPARE</h4>
+                    <p>Validators verify and broadcast PREPARE messages</p>
+                </div>
+                <div class="consensus-phase">
+                    <h4>Phase 3: COMMIT</h4>
+                    <p>Consensus reached when ≥ ⌊(2n+1)/3⌋ validators agree</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 5: METRICS -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="metrics" class="tab-content">
+            <h2>📈 Performance Metrics</h2>
+            <div class="section-description">
+                Cryptographic operation performance and consensus latency statistics.
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="loadMetrics()">🔄 Refresh Metrics</button>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-chart">
+                    <h3>Key Generation (ms)</h3>
+                    <canvas id="keygen-chart"></canvas>
+                </div>
+                <div class="metric-chart">
+                    <h3>Encryption Operations (ms)</h3>
+                    <canvas id="encrypt-chart"></canvas>
+                </div>
+                <div class="metric-chart">
+                    <h3>Signature Operations (ms)</h3>
+                    <canvas id="signature-chart"></canvas>
+                </div>
+                <div class="metric-chart">
+                    <h3>Latency Statistics (ms)</h3>
+                    <canvas id="latency-chart"></canvas>
+                </div>
+            </div>
+
+            <h3 style="margin-top: 40px;">📊 Detailed Metrics</h3>
+            <div class="table-responsive">
+                <table class="data-table" id="metrics-table">
+                    <thead>
+                        <tr>
+                            <th>Operation</th>
+                            <th>Mean (ms)</th>
+                            <th>Median (ms)</th>
+                            <th>Std Dev</th>
+                            <th>Min (ms)</th>
+                            <th>Max (ms)</th>
+                            <th>P95 (ms)</th>
+                            <th>Samples</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metrics-tbody">
+                        <tr><td colspan="8" class="text-center">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <!-- TAB 6: TOOLS -->
+        <!-- ══════════════════════════════════════════════════════════ -->
+        <section id="tools" class="tab-content">
+            <h2>🔧 Blockchain Tools</h2>
+
+            <div class="tools-grid">
+                <!-- Chain Verification -->
+                <div class="tool-card">
+                    <h3>🔍 Verify Blockchain Integrity</h3>
+                    <p>Check if the entire blockchain is valid and tamper-free.</p>
+                    <button class="btn btn-danger" onclick="verifyChain()">Verify Chain</button>
+                    <div id="verify-result" style="display: none;" class="alert" style="margin-top: 15px;"></div>
+                </div>
+
+                <!-- Chain Statistics -->
+                <div class="tool-card">
+                    <h3>📊 Chain Statistics</h3>
+                    <p>View detailed blockchain statistics.</p>
+                    <button class="btn btn-info" onclick="getChainStats()">Get Statistics</button>
+                    <div id="stats-result" style="display: none;" class="alert" style="margin-top: 15px;"></div>
+                </div>
+
+                <!-- Auto-Refresh Settings -->
+                <div class="tool-card">
+                    <h3>⏱️ Auto-Refresh Settings</h3>
+                    <p>Configure automatic updates.</p>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="auto-refresh" checked>
+                            Enable auto-refresh
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label for="refresh-interval">Interval (seconds):</label>
+                        <input type="number" id="refresh-interval" min="1" step="1" value="3">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveRefreshSettings()">Save Settings</button>
+                </div>
+            </div>
+
+            <!-- About Section -->
+            <div style="margin-top: 40px; padding: 20px; background: #f5f5f5; border-radius: 8px;">
+                <h3>ℹ️ About This Dashboard</h3>
+                <p><strong>Project:</strong> Post-Quantum Secure Blockchain (CRYSTALS-Kyber1024 + CRYSTALS-Dilithium3)</p>
+                <p><strong>Institution:</strong> B.V. Raju Institute of Technology, AI&DS Department</p>
+                <p><strong>Consensus:</strong> PBFT-inspired 3-phase consensus (PRE-PREPARE → PREPARE → COMMIT)</p>
+                <p><strong>Storage:</strong> SQLite persistence with chain integrity verification</p>
+                <p><strong>Features:</strong> Merkle tree transaction verification, fee-priority mempool, parallel signature verification</p>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Quantum-Resistant Blockchain Dashboard • Last updated: <span id="footer-time">-</span></p>
+        <p>Running on CRYSTALS-Kyber1024 + CRYSTALS-Dilithium3 with PBFT Consensus</p>
+    </footer>
+
+    <!-- Block Detail Modal -->
+    <div id="block-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeBlockModal()">&times;</span>
+            <div id="block-detail-content"></div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+</body>
+</html>

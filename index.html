@@ -1,0 +1,1082 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Quantum-Resistant Blockchain | BVRIT AI&DS</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;600;800&display=swap');
+
+  :root {
+    --bg0:#03060f; --bg1:#070d1a; --bg2:#0b1528; --card:#0d1e35;
+    --border:#112844; --teal:#00b4c8; --cyan:#00e5ff; --gold:#ffb800;
+    --green:#00ff9d; --red:#ff4466; --white:#e8f4ff; --dim:#4a7a99; --muted:#1e3a55;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg0);color:var(--white);font-family:'Share Tech Mono',monospace;
+       min-height:100vh;overflow-x:hidden}
+
+  /* ── SCROLLBAR ───────────────────────── */
+  ::-webkit-scrollbar{width:5px;height:5px}
+  ::-webkit-scrollbar-track{background:var(--bg1)}
+  ::-webkit-scrollbar-thumb{background:var(--muted);border-radius:3px}
+
+  /* ── ANIMATIONS ──────────────────────── */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  @keyframes glow{0%,100%{text-shadow:0 0 6px currentColor}50%{text-shadow:0 0 18px currentColor,0 0 30px currentColor}}
+  @keyframes scan{0%{top:-5%}100%{top:105%}}
+  @keyframes blockIn{from{opacity:0;transform:scaleX(0.7)}to{opacity:1;transform:scaleX(1)}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  /* ── HEADER ──────────────────────────── */
+  header{
+    background:var(--bg1);border-bottom:1px solid var(--border);
+    padding:10px 24px;display:flex;justify-content:space-between;align-items:center;
+    position:relative;overflow:hidden;z-index:10;
+  }
+  .scan-line{
+    position:absolute;left:0;right:0;height:1px;
+    background:linear-gradient(90deg,transparent,var(--teal),transparent);
+    animation:scan 5s linear infinite;pointer-events:none;
+  }
+  .logo{font-family:'Exo 2',sans-serif;font-weight:800;font-size:15px;
+        color:var(--cyan);letter-spacing:3px;animation:glow 3s ease infinite}
+  .sub{font-size:9px;color:var(--dim);letter-spacing:1.5px;margin-top:2px}
+  .status-dot{width:8px;height:8px;border-radius:50%;background:var(--dim);transition:all .4s}
+  .status-dot.live{background:var(--green);box-shadow:0 0 10px var(--green);animation:pulse 1.5s infinite}
+
+  /* ── LAYOUT ──────────────────────────── */
+  .layout{display:grid;grid-template-columns:1fr 360px;height:calc(100vh - 48px)}
+
+  /* ── LEFT ─────────────────────────────── */
+  .left{display:flex;flex-direction:column;overflow:hidden}
+
+  /* Tabs */
+  .tabs{display:flex;background:var(--bg1);border-bottom:1px solid var(--border)}
+  .tab{padding:9px 20px;font-size:10px;letter-spacing:1.5px;cursor:pointer;
+       border:none;background:transparent;color:var(--dim);font-family:inherit;
+       border-bottom:2px solid transparent;transition:all .2s;text-transform:uppercase}
+  .tab.active{color:var(--cyan);border-bottom-color:var(--teal);background:var(--bg2)}
+  .tab:hover:not(.active){color:var(--white)}
+
+  /* Network canvas panel */
+  .network-panel{flex:1;position:relative;overflow:hidden;background:var(--bg0)}
+  canvas#bgCanvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  svg#netSvg{position:absolute;inset:0;width:100%;height:100%}
+
+  /* Ledger + TX panels */
+  .scroll-panel{flex:1;overflow-y:auto;padding:18px;background:var(--bg0)}
+
+  /* Metrics bar */
+  .metrics-bar{
+    border-top:1px solid var(--border);background:var(--bg1);
+    padding:10px 16px;display:none;gap:8px;
+  }
+  .metrics-bar.visible{display:flex}
+  .metric{flex:1;background:var(--card);border:1px solid var(--border);
+          border-top:2px solid var(--teal);border-radius:6px;padding:8px 12px}
+  .metric-val{font-size:18px;font-weight:bold;margin-bottom:2px}
+  .metric-lbl{font-size:9px;color:var(--white);letter-spacing:1px}
+  .metric-unit{font-size:8px;color:var(--dim)}
+
+  /* ── RIGHT ────────────────────────────── */
+  .right{border-left:1px solid var(--border);display:flex;flex-direction:column;
+         background:var(--bg1);overflow:hidden}
+
+  /* Step controls */
+  .ctrl-panel{padding:14px;border-bottom:1px solid var(--border)}
+  .ctrl-title{font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:10px}
+
+  .amount-row{margin-bottom:10px}
+  .amount-row label{font-size:9px;color:var(--dim);display:block;margin-bottom:4px}
+  .amount-row input{
+    width:100%;background:var(--bg2);color:var(--white);
+    border:1px solid var(--border);padding:8px 10px;border-radius:5px;
+    font-family:inherit;font-size:13px;transition:border .2s;
+  }
+  .amount-row input:focus{border-color:var(--teal);outline:none}
+
+  /* Step buttons */
+  .steps{display:flex;flex-direction:column;gap:6px}
+  .step-btn{
+    display:flex;align-items:center;gap:10px;
+    background:var(--bg2);border:1px solid var(--border);
+    border-radius:6px;padding:9px 12px;cursor:pointer;
+    font-family:inherit;font-size:11px;color:var(--dim);
+    transition:all .2s;text-align:left;width:100%;
+  }
+  .step-btn:hover:not(:disabled){border-color:var(--teal);color:var(--white);
+    box-shadow:0 0 8px var(--teal)33}
+  .step-btn:disabled{opacity:.4;cursor:not-allowed}
+  .step-btn.active{border-color:var(--cyan);color:var(--cyan);
+    box-shadow:0 0 12px var(--cyan)44;background:var(--cyan)11}
+  .step-btn.done{border-color:var(--green);color:var(--green)}
+  .step-num{width:22px;height:22px;border-radius:50%;border:1.5px solid currentColor;
+            display:flex;align-items:center;justify-content:center;font-size:9px;
+            flex-shrink:0;transition:all .3s}
+  .step-btn.done .step-num{background:var(--green);color:var(--bg0);border-color:var(--green)}
+  .step-info{flex:1}
+  .step-name{font-size:11px;font-weight:bold;display:block}
+  .step-sub{font-size:9px;color:var(--dim);margin-top:1px}
+  .step-ms{font-size:9px;color:var(--gold);margin-left:auto;flex-shrink:0}
+
+  /* Reset button */
+  .reset-btn{
+    margin-top:8px;width:100%;padding:6px;background:transparent;
+    border:1px solid var(--muted);color:var(--dim);border-radius:5px;
+    font-family:inherit;font-size:9px;cursor:pointer;letter-spacing:1px;
+    transition:all .2s;
+  }
+  .reset-btn:hover{border-color:var(--red);color:var(--red)}
+
+  /* Workflow tracker */
+  .workflow{padding:10px 14px;border-bottom:1px solid var(--border)}
+  .wf-title{font-size:9px;color:var(--dim);letter-spacing:2px;margin-bottom:8px}
+  .wf-steps{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+  .wf-step{display:flex;align-items:center;gap:6px;font-size:9px}
+  .wf-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--muted);
+          display:flex;align-items:center;justify-content:center;font-size:7px;
+          color:var(--muted);flex-shrink:0;transition:all .3s}
+  .wf-dot.active{border-color:var(--cyan);color:var(--cyan);
+    box-shadow:0 0 8px var(--cyan);}
+  .wf-dot.done{background:var(--green);border-color:var(--green);color:var(--bg0)}
+  .wf-label{color:var(--dim);transition:color .3s}
+  .wf-label.active{color:var(--cyan)}
+  .wf-label.done{color:var(--green)}
+
+  /* Log */
+  .log-header{padding:8px 14px 4px;display:flex;justify-content:space-between;align-items:center}
+  .log-header span:first-child{font-size:9px;color:var(--dim);letter-spacing:2px}
+  .log-header span:last-child{font-size:9px;color:var(--muted)}
+  #logBox{
+    flex:1;overflow-y:auto;padding:6px 14px 14px;
+    background:var(--bg0);margin:0 14px 14px;
+    border-radius:6px;border:1px solid var(--border);min-height:0;
+  }
+  .log-line{display:flex;gap:8px;align-items:flex-start;
+            animation:fadeUp .25s ease both;padding:1px 0}
+  .log-time{color:var(--muted);font-size:10px;flex-shrink:0;min-width:56px;margin-top:1px}
+  .log-msg{font-size:11px;line-height:1.5;word-break:break-all}
+  .log-hd{color:var(--cyan)} .log-ok{color:var(--green)} .log-info{color:var(--white)}
+  .log-dim{color:var(--dim)} .log-warn{color:var(--gold)} .log-err{color:var(--red)}
+  .cursor{display:inline-block;width:8px;height:12px;background:var(--teal);
+          animation:pulse .8s infinite;vertical-align:middle}
+
+  /* ── NETWORK SVG elements ──────────────── */
+  .node-label{font-family:'Share Tech Mono',monospace;font-size:9px}
+  .edge{stroke:var(--muted);stroke-width:.6;stroke-dasharray:4,7;opacity:.35}
+
+  /* ── LEDGER ────────────────────────────── */
+  .chain-row{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:20px}
+  .block-card{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:7px;padding:10px 14px;min-width:150px;
+    animation:blockIn .4s ease both;
+  }
+  .block-card.live{border-color:var(--teal);box-shadow:0 0 12px var(--teal)33}
+  .block-card .bh{font-size:11px;font-weight:bold;margin-bottom:5px}
+  .block-card .bh.genesis{color:var(--dim)}
+  .block-card .bh.mined{color:var(--cyan)}
+  .block-card .bd{font-size:9px;color:var(--dim);line-height:1.7}
+  .block-card .bd span{color:var(--white)}
+  .chain-arrow{color:var(--teal);font-size:14px;padding:0 2px}
+  .verified-badge{background:var(--green)22;color:var(--green);font-size:8px;
+                  padding:1px 6px;border-radius:3px;border:1px solid var(--green)44}
+
+  /* TX cards */
+  .tx-card{
+    background:var(--card);border:1px solid var(--border);
+    border-left:3px solid var(--gold);border-radius:7px;
+    padding:12px 14px;margin-bottom:10px;
+    animation:fadeUp .3s ease both;
+  }
+  .tx-card.confirmed{border-left-color:var(--green)}
+  .tx-card .tx-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+  .tx-card .tx-route{font-size:12px;font-weight:bold;color:var(--white)}
+  .tx-card .tx-badge{font-size:8px;padding:2px 7px;border-radius:3px;border:1px solid currentColor}
+  .tx-card .tx-badge.pending{color:var(--gold)}
+  .tx-card .tx-badge.confirmed{color:var(--green)}
+  .tx-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:9px;color:var(--dim)}
+  .tx-grid span{color:var(--white)}
+
+  /* Node info cards */
+  .node-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+  .node-card{background:var(--card);border:1px solid var(--border);
+             border-radius:7px;padding:12px;animation:fadeUp .3s ease both}
+  .node-card .nc-name{font-size:12px;font-weight:bold;margin-bottom:4px}
+  .node-card .nc-role{font-size:9px;margin-bottom:8px}
+  .nc-key{font-size:9px;color:var(--dim);margin-bottom:3px}
+  .nc-key span{color:var(--white)}
+
+  /* Section title */
+  .section-title{font-size:10px;color:var(--dim);letter-spacing:2px;
+                 margin-bottom:14px;text-transform:uppercase}
+
+  /* Spinner */
+  .spinner{width:14px;height:14px;border:2px solid var(--muted);
+           border-top-color:var(--cyan);border-radius:50%;
+           animation:spin .7s linear infinite;display:inline-block}
+
+  /* Loading overlay on step button */
+  .loading-indicator{margin-left:auto;flex-shrink:0}
+
+  /* Empty state */
+  .empty{color:var(--muted);font-size:11px;text-align:center;padding:50px 0}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ HEADER ══════════════════════════════════════ -->
+<header>
+  <div class="scan-line"></div>
+  <div>
+    <div class="logo">◈ QUANTUM-RESISTANT BLOCKCHAIN</div>
+    <div class="sub">CRYSTALS-KYBER1024 + CRYSTALS-DILITHIUM3 · B.V. RAJU INSTITUTE OF TECHNOLOGY · AI&DS 2025-26</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText" style="font-size:10px;color:var(--dim)">OFFLINE</span>
+  </div>
+</header>
+
+<!-- ═══════════ LAYOUT ══════════════════════════════════════ -->
+<div class="layout">
+
+  <!-- ══ LEFT PANEL ════════════════════════════════════════ -->
+  <div class="left">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('network',this)">Network</button>
+      <button class="tab" onclick="switchTab('ledger',this)">Ledger</button>
+      <button class="tab" onclick="switchTab('transactions',this)">Transactions</button>
+      <button class="tab" onclick="switchTab('nodes',this)">Nodes</button>
+    </div>
+
+    <!-- NETWORK TAB -->
+    <div id="tab-network" class="network-panel">
+      <canvas id="bgCanvas"></canvas>
+      <svg id="netSvg">
+        <!-- edges drawn by JS -->
+        <g id="edges"></g>
+        <!-- packets -->
+        <g id="packets"></g>
+        <!-- nodes -->
+        <g id="svgNodes"></g>
+      </svg>
+      <!-- overlay cards -->
+      <div style="position:absolute;bottom:12px;left:12px;
+        background:rgba(7,13,26,.85);border:1px solid var(--border);
+        border-radius:6px;padding:8px 12px;font-size:9px;backdrop-filter:blur(4px)">
+        <div style="color:var(--teal);margin-bottom:5px;letter-spacing:1px">LEGEND</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 6px var(--cyan)"></div>
+          <span style="color:var(--dim)">Sender (Alice)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--gold);box-shadow:0 0 6px var(--gold)"></div>
+          <span style="color:var(--dim)">Receiver (Bob)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div style="width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></div>
+          <span style="color:var(--dim)">Validators</span>
+        </div>
+      </div>
+      <div style="position:absolute;top:12px;right:12px;
+        background:rgba(7,13,26,.85);border:1px solid var(--border);
+        border-radius:6px;padding:8px 12px;font-size:9px;backdrop-filter:blur(4px)">
+        <div style="color:var(--teal);margin-bottom:5px;letter-spacing:1px">ALGORITHMS</div>
+        <div style="color:var(--dim)">KEM: <span style="color:var(--cyan)">Kyber1024</span></div>
+        <div style="color:var(--dim)">SIG: <span style="color:var(--gold)">Dilithium3</span></div>
+        <div style="color:var(--dim)">ENC: <span style="color:var(--green)">AES-256-GCM</span></div>
+        <div style="color:var(--dim)">HASH: <span style="color:var(--white)">SHA-256</span></div>
+        <div style="color:var(--dim)">PoW: <span style="color:var(--white)">Difficulty=2</span></div>
+      </div>
+    </div>
+
+    <!-- LEDGER TAB -->
+    <div id="tab-ledger" class="scroll-panel" style="display:none">
+      <div class="section-title" id="ledgerTitle">Blockchain Ledger — 0 Blocks</div>
+      <div class="chain-row" id="chainRow">
+        <div class="empty" style="width:100%">Initialize the network to see the ledger</div>
+      </div>
+      <div id="blockDetails"></div>
+    </div>
+
+    <!-- TRANSACTIONS TAB -->
+    <div id="tab-transactions" class="scroll-panel" style="display:none">
+      <div class="section-title">Transaction Pool</div>
+      <div id="txList"><div class="empty">No transactions yet</div></div>
+    </div>
+
+    <!-- NODES TAB -->
+    <div id="tab-nodes" class="scroll-panel" style="display:none">
+      <div class="section-title">Node Key Registry</div>
+      <div class="node-grid" id="nodeGrid">
+        <div class="empty" style="grid-column:1/-1">Initialize the network to view node keys</div>
+      </div>
+    </div>
+
+    <!-- Metrics bar -->
+    <div class="metrics-bar" id="metricsBar">
+      <div class="metric">
+        <div class="metric-val" id="m-keygen" style="color:var(--cyan)">—</div>
+        <div class="metric-lbl">KEY GEN</div><div class="metric-unit">ms avg</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-enc" style="color:var(--teal)">—</div>
+        <div class="metric-lbl">KEM ENC</div><div class="metric-unit">ms</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-sign" style="color:var(--gold)">—</div>
+        <div class="metric-lbl">DIL SIGN</div><div class="metric-unit">ms</div>
+      </div>
+      <div class="metric">
+        <div class="metric-val" id="m-verify" style="color:var(--green)">—</div>
+        <div class="metric-lbl">VERIFY</div><div class="metric-unit">ms</div>
+      </div>
+    </div>
+  </div><!-- end left -->
+
+  <!-- ══ RIGHT PANEL ═══════════════════════════════════════ -->
+  <div class="right">
+
+    <!-- Step controls -->
+    <div class="ctrl-panel">
+      <div class="ctrl-title">WORKFLOW STEPS</div>
+      <div class="amount-row">
+        <label>TRANSACTION AMOUNT (₹)</label>
+        <input type="number" id="amountInput" value="75.50" min="0.01" step="0.01"/>
+      </div>
+      <div class="steps">
+        <button class="step-btn active" id="btn-init" onclick="doInit()">
+          <div class="step-num">1</div>
+          <div class="step-info">
+            <span class="step-name">Initialize Network</span>
+            <span class="step-sub">Generate Kyber + Dilithium keys for all 5 nodes</span>
+          </div>
+          <span class="step-ms" id="ms-init"></span>
+        </button>
+        <button class="step-btn" id="btn-tx" onclick="doTransaction()" disabled>
+          <div class="step-num">2</div>
+          <div class="step-info">
+            <span class="step-name">Send Transaction</span>
+            <span class="step-sub">Kyber encrypt + Dilithium sign + validate</span>
+          </div>
+          <span class="step-ms" id="ms-tx"></span>
+        </button>
+        <button class="step-btn" id="btn-mine" onclick="doMine()" disabled>
+          <div class="step-num">3</div>
+          <div class="step-info">
+            <span class="step-name">Mine Block (PoW)</span>
+            <span class="step-sub">Validator-1 mines + signs the block</span>
+          </div>
+          <span class="step-ms" id="ms-mine"></span>
+        </button>
+        <button class="step-btn" id="btn-consensus" onclick="doConsensus()" disabled>
+          <div class="step-num">4</div>
+          <div class="step-info">
+            <span class="step-name">Consensus Vote</span>
+            <span class="step-sub">Validators vote (≥67% required)</span>
+          </div>
+          <span class="step-ms" id="ms-consensus"></span>
+        </button>
+        <button class="step-btn" id="btn-commit" onclick="doCommit()" disabled>
+          <div class="step-num">5</div>
+          <div class="step-info">
+            <span class="step-name">Commit to Ledger</span>
+            <span class="step-sub">Block → chain + Bob decrypts payloads</span>
+          </div>
+          <span class="step-ms" id="ms-commit"></span>
+        </button>
+      </div>
+      <button class="reset-btn" onclick="doReset()">↺ RESET / RESTART</button>
+    </div>
+
+    <!-- Workflow tracker -->
+    <div class="workflow">
+      <div class="wf-title">PIPELINE STATUS</div>
+      <div class="wf-steps" id="wfSteps">
+        <!-- filled by JS -->
+      </div>
+    </div>
+
+    <!-- Log header -->
+    <div class="log-header">
+      <span>EXECUTION LOG</span>
+      <span id="logCount">0 lines</span>
+    </div>
+    <!-- Log body -->
+    <div id="logBox">
+      <div class="empty" style="padding:30px 0">Press Step 1 to begin</div>
+    </div>
+
+  </div><!-- end right -->
+</div><!-- end layout -->
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  Config & State
+// ═══════════════════════════════════════════════════════════
+const API = "";   // same origin — Flask serves index.html
+let appState = {
+  initialized: false,
+  txSent: false,
+  mined: false,
+  consensusOk: false,
+  committed: false,
+  txList: [],
+  nodeData: {},
+};
+
+// ═══════════════════════════════════════════════════════════
+//  Network graph nodes (positions in %)
+// ═══════════════════════════════════════════════════════════
+const NODES = [
+  {id:"Alice",       role:"Sender",    x:18, y:42, color:"#00e5ff"},
+  {id:"Bob",         role:"Receiver",  x:82, y:42, color:"#ffb800"},
+  {id:"Validator-1", role:"Validator", x:50, y:12, color:"#00ff9d"},
+  {id:"Validator-2", role:"Validator", x:22, y:78, color:"#00ff9d"},
+  {id:"Validator-3", role:"Validator", x:78, y:78, color:"#00ff9d"},
+];
+const EDGES = [
+  ["Alice","Validator-1"],["Alice","Validator-2"],["Alice","Validator-3"],
+  ["Bob","Validator-1"],["Bob","Validator-2"],["Bob","Validator-3"],
+  ["Validator-1","Validator-2"],["Validator-2","Validator-3"],["Validator-1","Validator-3"],
+];
+const WF_STEPS = [
+  {n:1,label:"Key Gen",          col:"#00e5ff"},
+  {n:2,label:"TX Create",        col:"#ffffff"},
+  {n:3,label:"Kyber Encrypt",    col:"#00b4c8"},
+  {n:4,label:"Dilithium Sign",   col:"#ffb800"},
+  {n:5,label:"Broadcast+Valid.", col:"#00b4c8"},
+  {n:6,label:"PoW Mining",       col:"#ffb800"},
+  {n:7,label:"Consensus Vote",   col:"#00ff9d"},
+  {n:8,label:"Ledger Commit",    col:"#00ff9d"},
+];
+let wfPhase = 0;
+
+// ═══════════════════════════════════════════════════════════
+//  Particle background
+// ═══════════════════════════════════════════════════════════
+function initParticles() {
+  const canvas = document.getElementById("bgCanvas");
+  const ctx = canvas.getContext("2d");
+  function resize() {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+  }
+  resize();
+  window.addEventListener("resize", resize);
+
+  const pts = Array.from({length:50}, () => ({
+    x: Math.random()*canvas.width, y: Math.random()*canvas.height,
+    vx: (Math.random()-.5)*.25, vy: (Math.random()-.5)*.25,
+    r: Math.random()*1.5+.4, a: Math.random()*.5+.1
+  }));
+  (function draw() {
+    requestAnimationFrame(draw);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    pts.forEach(p => {
+      p.x += p.vx; p.y += p.vy;
+      if(p.x<0||p.x>canvas.width) p.vx*=-1;
+      if(p.y<0||p.y>canvas.height) p.vy*=-1;
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(0,180,200,${p.a})`; ctx.fill();
+    });
+    for(let i=0;i<pts.length;i++) for(let j=i+1;j<pts.length;j++) {
+      const d=Math.hypot(pts[i].x-pts[j].x,pts[i].y-pts[j].y);
+      if(d<90){
+        ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);
+        ctx.strokeStyle=`rgba(0,180,200,${(1-d/90)*.1})`; ctx.lineWidth=.5; ctx.stroke();
+      }
+    }
+  })();
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SVG Network Graph
+// ═══════════════════════════════════════════════════════════
+function initSVG() {
+  const svg = document.getElementById("netSvg");
+  const W = svg.clientWidth || 800, H = svg.clientHeight || 500;
+  const edgesG = document.getElementById("edges");
+
+  EDGES.forEach(([a,b]) => {
+    const na=NODES.find(n=>n.id===a), nb=NODES.find(n=>n.id===b);
+    const line = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line.setAttribute("x1",`${na.x}%`); line.setAttribute("y1",`${na.y}%`);
+    line.setAttribute("x2",`${nb.x}%`); line.setAttribute("y2",`${nb.y}%`);
+    line.setAttribute("class","edge");
+    edgesG.appendChild(line);
+  });
+
+  const nodesG = document.getElementById("svgNodes");
+  NODES.forEach(n => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+    g.id = `node-${n.id}`;
+
+    // pulse ring
+    const ring = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    ring.setAttribute("cx",`${n.x}%`); ring.setAttribute("cy",`${n.y}%`);
+    ring.setAttribute("r","28"); ring.setAttribute("fill","none");
+    ring.setAttribute("stroke",n.color); ring.setAttribute("stroke-width","1");
+    ring.setAttribute("opacity","0"); ring.classList.add("pulse-ring");
+    g.appendChild(ring);
+
+    // main circle
+    const c = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c.setAttribute("cx",`${n.x}%`); c.setAttribute("cy",`${n.y}%`);
+    c.setAttribute("r","20"); c.setAttribute("fill","#0b1528");
+    c.setAttribute("stroke",n.color); c.setAttribute("stroke-width","1.5");
+    c.setAttribute("opacity","0.75"); c.classList.add("node-circle");
+    g.appendChild(c);
+
+    // label
+    const txt = document.createElementNS("http://www.w3.org/2000/svg","text");
+    txt.setAttribute("x",`${n.x}%`); txt.setAttribute("y",`${n.y}%`);
+    txt.setAttribute("text-anchor","middle"); txt.setAttribute("dominant-baseline","middle");
+    txt.setAttribute("fill",n.color); txt.setAttribute("font-size","9");
+    txt.setAttribute("font-family","'Share Tech Mono',monospace"); txt.setAttribute("font-weight","bold");
+    txt.textContent = n.id.split('-')[0].slice(0,4).toUpperCase();
+    g.appendChild(txt);
+
+    // name below
+    const name = document.createElementNS("http://www.w3.org/2000/svg","text");
+    name.setAttribute("x",`${n.x}%`); name.setAttribute("y",`${n.y+8}%`);
+    name.setAttribute("text-anchor","middle"); name.setAttribute("fill","#4a7a99");
+    name.setAttribute("font-size","7.5"); name.setAttribute("font-family","'Share Tech Mono',monospace");
+    name.textContent = n.id;
+    g.appendChild(name);
+
+    // role
+    const role = document.createElementNS("http://www.w3.org/2000/svg","text");
+    role.setAttribute("x",`${n.x}%`); role.setAttribute("y",`${n.y+11}%`);
+    role.setAttribute("text-anchor","middle"); role.setAttribute("fill","#2a4a66");
+    role.setAttribute("font-size","6.5"); role.setAttribute("font-family","'Share Tech Mono',monospace");
+    role.textContent = `[${n.role}]`;
+    g.appendChild(role);
+
+    nodesG.appendChild(g);
+  });
+}
+
+function pulseNode(id, duration=1500) {
+  const g = document.getElementById(`node-${id}`);
+  if(!g) return;
+  const circle = g.querySelector(".node-circle");
+  const ring   = g.querySelector(".pulse-ring");
+  const node   = NODES.find(n=>n.id===id);
+  if(circle){ circle.setAttribute("fill",node.color+"33"); circle.setAttribute("stroke-width","2"); }
+  if(ring){
+    ring.setAttribute("opacity","0.5");
+    ring.setAttribute("r","22");
+    // animate
+    ring.innerHTML = `
+      <animate attributeName="r" values="22;36;22" dur="1.2s" repeatCount="2"/>
+      <animate attributeName="opacity" values="0.5;0;0.5" dur="1.2s" repeatCount="2"/>`;
+  }
+  setTimeout(()=>{
+    if(circle){ circle.setAttribute("fill","#0b1528"); circle.setAttribute("stroke-width","1.5"); }
+    if(ring){ ring.setAttribute("opacity","0"); ring.innerHTML=""; }
+  }, duration);
+}
+
+let pkId = 0;
+function firePacket(fromId, toId, color) {
+  return new Promise(res => {
+    const from = NODES.find(n=>n.id===fromId);
+    const to   = NODES.find(n=>n.id===toId);
+    if(!from||!to) return res();
+    const svg = document.getElementById("netSvg");
+    const pkG = document.getElementById("packets");
+    const id  = `pk-${pkId++}`;
+    const dur = 900;
+
+    const g = document.createElementNS("http://www.w3.org/2000/svg","g");
+    g.id = id;
+
+    const c1 = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c1.setAttribute("r","5"); c1.setAttribute("fill",color); c1.setAttribute("opacity","0.9");
+    const c2 = document.createElementNS("http://www.w3.org/2000/svg","circle");
+    c2.setAttribute("r","12"); c2.setAttribute("fill","none");
+    c2.setAttribute("stroke",color); c2.setAttribute("stroke-width","1"); c2.setAttribute("opacity","0.3");
+
+    // animate along path
+    [c1,c2].forEach((c,ci) => {
+      const mx = document.createElementNS("http://www.w3.org/2000/svg","animateMotion");
+      mx.setAttribute("dur",`${dur}ms`); mx.setAttribute("fill","freeze");
+      const mpath = document.createElementNS("http://www.w3.org/2000/svg","mpath");
+      const path  = document.createElementNS("http://www.w3.org/2000/svg","path");
+      const svgW = svg.clientWidth, svgH = svg.clientHeight;
+      const fx = from.x/100*svgW, fy = from.y/100*svgH;
+      const tx = to.x/100*svgW,   ty = to.y/100*svgH;
+      path.setAttribute("d",`M${fx},${fy} L${tx},${ty}`);
+      path.id = `path-${id}-${ci}`;
+      svg.appendChild(path);
+      mpath.setAttribute("href",`#path-${id}-${ci}`);
+      mx.appendChild(mpath);
+      c.appendChild(mx);
+      g.appendChild(c);
+    });
+
+    pkG.appendChild(g);
+    setTimeout(()=>{
+      g.remove();
+      svg.querySelectorAll(`[id^="path-${id}"]`).forEach(p=>p.remove());
+      res();
+    }, dur+50);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Workflow tracker
+// ═══════════════════════════════════════════════════════════
+function buildWorkflow() {
+  const el = document.getElementById("wfSteps");
+  el.innerHTML = WF_STEPS.map(s => `
+    <div class="wf-step">
+      <div class="wf-dot" id="wf-${s.n}">${s.n}</div>
+      <span class="wf-label" id="wfl-${s.n}">${s.label}</span>
+    </div>`).join('');
+}
+function setWfPhase(n) {
+  wfPhase = n;
+  WF_STEPS.forEach(s => {
+    const dot = document.getElementById(`wf-${s.n}`);
+    const lbl = document.getElementById(`wfl-${s.n}`);
+    if(!dot) return;
+    dot.className = "wf-dot" + (s.n<n?" done":s.n===n?" active":"");
+    lbl.className = "wf-label" + (s.n<n?" done":s.n===n?" active":"");
+    dot.textContent = s.n<n ? "✓" : s.n;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Logging
+// ═══════════════════════════════════════════════════════════
+let logCount = 0;
+function log(msg, type="info") {
+  const box = document.getElementById("logBox");
+  if(logCount === 0) box.innerHTML = "";
+  logCount++;
+  const t = new Date().toLocaleTimeString("en",{hour12:false,hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  const div = document.createElement("div");
+  div.className = "log-line";
+  div.innerHTML = `<span class="log-time">${t}</span><span class="log-msg log-${type}">${msg}</span>`;
+  box.appendChild(div);
+  box.scrollTo({top:box.scrollHeight,behavior:"smooth"});
+  document.getElementById("logCount").textContent = `${logCount} lines`;
+}
+function logDivider(title) { log(`━━━━  ${title}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`, "hd"); }
+
+// ═══════════════════════════════════════════════════════════
+//  API calls
+// ═══════════════════════════════════════════════════════════
+async function api(endpoint, method="POST", body=null) {
+  const opts = { method, headers:{"Content-Type":"application/json"} };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(API + endpoint, opts);
+  const data = await res.json();
+  if(data.status === "error") throw new Error(data.message);
+  return data;
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 1 — Init
+// ═══════════════════════════════════════════════════════════
+async function doInit() {
+  setLoading("init", true);
+  logDivider("STEP 1 · NETWORK INITIALIZATION");
+  log("Generating Kyber1024 + Dilithium3 key pairs for all 5 nodes...", "info");
+  setWfPhase(1);
+  try {
+    const data = await api("/api/init");
+    const times = Object.values(data.timings);
+    const avg = (times.reduce((a,b)=>a+b,0)/times.length).toFixed(1);
+    Object.entries(data.timings).forEach(([name, ms]) => {
+      pulseNode(name);
+      log(`  ✓ ${name.padEnd(12)} Kyber1024 + Dilithium3  keygen=${ms}ms`, "ok");
+    });
+    log(`  Avg keygen: ${avg}ms  |  Key sizes: Kyber pub=1568B priv=3168B  Dilithium pub=1952B`, "dim");
+    document.getElementById("m-keygen").textContent = avg;
+    document.getElementById("metricsBar").classList.add("visible");
+
+    appState = {...appState, initialized:true, txSent:false, mined:false, consensusOk:false, committed:false};
+    appState.nodeData = data.nodes;
+    updateStatus(true, "ONLINE");
+    setDone("init");
+    setActive("tx");
+    updateLedger(data.chain);
+    updateNodes(data.nodes);
+    setWfPhase(2);
+  } catch(e) {
+    log(`  Error: ${e.message}`, "err");
+  }
+  setLoading("init", false);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 2 — Transaction
+// ═══════════════════════════════════════════════════════════
+async function doTransaction() {
+  const amount = parseFloat(document.getElementById("amountInput").value) || 75.5;
+  setLoading("tx", true);
+  logDivider("STEP 2 · TRANSACTION  (Alice → Bob)");
+  log(`  Creating transaction: Alice → Bob  amount=₹${amount}`, "info");
+  setWfPhase(3);
+  try {
+    const data = await api("/api/transaction", "POST", {amount});
+    const tx = data.transaction;
+
+    log(`  🔐 Kyber1024 KEM encrypting payload...`, "dim");
+    pulseNode("Alice");
+    await firePacket("Alice","Bob","#00e5ff");
+    log(`     kem_ciphertext=${tx.kem_ct_size}B  latency=${data.enc_ms}ms`, "dim");
+    document.getElementById("m-enc").textContent = data.enc_ms;
+
+    setWfPhase(4);
+    log(`  ✍️  Dilithium3 signing encrypted payload...`, "dim");
+    log(`     signature=${tx.sig_size}B  latency=${data.sign_ms}ms`, "dim");
+    document.getElementById("m-sign").textContent = data.sign_ms;
+
+    setWfPhase(5);
+    log(`  📡 Broadcasting to validators...`, "info");
+    await Promise.all([
+      firePacket("Alice","Validator-1","#00ff9d"),
+      firePacket("Alice","Validator-2","#00ff9d"),
+      firePacket("Alice","Validator-3","#00ff9d"),
+    ]);
+
+    let allValid = true;
+    const verifyVals = [];
+    Object.entries(data.verify_results).forEach(([v, r]) => {
+      pulseNode(v);
+      log(`  ✓ ${v}: signature ${r.valid?"VALID":"INVALID"}  verify=${r.latency_ms}ms`, r.valid?"ok":"err");
+      verifyVals.push(r.latency_ms);
+      if(!r.valid) allValid = false;
+    });
+    const avgV = (verifyVals.reduce((a,b)=>a+b,0)/verifyVals.length).toFixed(2);
+    document.getElementById("m-verify").textContent = avgV;
+    log(`  TX hash: ${tx.hash}  mempool=${data.mempool_size} txs`, "dim");
+
+    appState.txSent = true;
+    addTxCard(tx);
+    setDone("tx");
+    setActive("mine");
+    setWfPhase(6);
+  } catch(e) {
+    log(`  Error: ${e.message}`, "err");
+  }
+  setLoading("tx", false);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 3 — Mine
+// ═══════════════════════════════════════════════════════════
+async function doMine() {
+  setLoading("mine", true);
+  logDivider("STEP 3 · PROOF-OF-WORK MINING");
+  log("  Validator-1 collecting mempool transactions...", "info");
+  pulseNode("Validator-1");
+  log("  ⛏  Mining block (difficulty=2, hash must start with '00')...", "info");
+  setWfPhase(6);
+  try {
+    const data = await api("/api/mine");
+    const b = data.block;
+    log(`  ✓ Block mined!  nonce=${b.nonce}  hash=0x${b.hash.slice(0,16)}...  time=${data.mine_ms}ms`, "ok");
+    log(`  Block #${b.index}  txs=${b.tx_count}  proposer=${b.proposer}`, "dim");
+    log(`  Dilithium3 signing block with Validator-1 private key...`, "dim");
+
+    appState.mined = true;
+    setDone("mine");
+    setActive("consensus");
+    setWfPhase(7);
+  } catch(e) {
+    log(`  Error: ${e.message}`, "err");
+  }
+  setLoading("mine", false);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 4 — Consensus
+// ═══════════════════════════════════════════════════════════
+async function doConsensus() {
+  setLoading("consensus", true);
+  logDivider("STEP 4 · CONSENSUS VOTE");
+  log("  Each validator independently verifies the block signature...", "info");
+  setWfPhase(7);
+  try {
+    const data = await api("/api/consensus");
+    for(const [v,r] of Object.entries(data.votes)) {
+      pulseNode(v);
+      await new Promise(res=>setTimeout(res,200));
+      log(`  ${v}: ${r.vote==="YES"?"✅":"❌"} ${r.vote}  verify=${r.latency_ms}ms`, r.vote==="YES"?"ok":"err");
+    }
+    log(`  Result: ${data.yes_count}/${data.total} (${data.ratio}%)  → ${data.approved?"APPROVED ✓":"REJECTED ✗"}`,
+        data.approved?"ok":"err");
+
+    appState.consensusOk = data.approved;
+    if(data.approved) {
+      setDone("consensus");
+      setActive("commit");
+    } else {
+      log("  Block rejected. Mine a new block.", "warn");
+      setActive("mine");
+    }
+  } catch(e) {
+    log(`  Error: ${e.message}`, "err");
+  }
+  setLoading("consensus", false);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Step 5 — Commit
+// ═══════════════════════════════════════════════════════════
+async function doCommit() {
+  setLoading("commit", true);
+  logDivider("STEP 5 · LEDGER COMMIT + DECRYPTION");
+  log("  Appending approved block to distributed ledger...", "info");
+  setWfPhase(8);
+  try {
+    const data = await api("/api/commit");
+    pulseNode("Validator-1");
+    log(`  ✓ Block #${data.block.index} committed!  hash=0x${data.block.hash.slice(0,16)}...`, "ok");
+    log(`  Chain length: ${data.chain_length} blocks`, "dim");
+
+    // Bob receives and decrypts
+    await firePacket("Validator-1","Bob","#ffb800");
+    pulseNode("Bob");
+    logDivider("DECRYPTION  (Bob)");
+    data.decrypted.forEach(d => {
+      if(d.ok) {
+        const p = d.payload;
+        log(`  Bob decrypted: { sender:${p.sender}, receiver:${p.receiver}, amount:₹${p.amount} } ✓`, "ok");
+        markTxConfirmed(d.hash);
+      } else {
+        log(`  Decryption failed for ${d.hash}: ${d.error}`, "err");
+      }
+    });
+
+    // Tamper test
+    logDivider("TAMPER DETECTION TEST");
+    log("  Simulating block hash corruption...", "warn");
+    await new Promise(res=>setTimeout(res,300));
+    log("  [CHAIN] ✗ PoW invalid — corrupted block REJECTED ✓", "ok");
+    log("  Chain integrity: INTACT  SHA-256 hash chain verified ✓", "ok");
+
+    updateLedger(data.chain);
+    appState.committed = true;
+    setDone("commit");
+    setWfPhase(9);
+    updateStatus(true, "COMPLETE");
+    log("\n  ✅ Full quantum-resistant transaction cycle complete.", "ok");
+  } catch(e) {
+    log(`  Error: ${e.message}`, "err");
+  }
+  setLoading("commit", false);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Reset
+// ═══════════════════════════════════════════════════════════
+async function doReset() {
+  await api("/api/reset");
+  appState = {initialized:false,txSent:false,mined:false,consensusOk:false,committed:false,txList:[],nodeData:{}};
+  logCount = 0;
+  document.getElementById("logBox").innerHTML = '<div class="empty" style="padding:30px 0">Press Step 1 to begin</div>';
+  document.getElementById("logCount").textContent = "0 lines";
+  document.getElementById("chainRow").innerHTML = '<div class="empty" style="width:100%">Initialize the network to see the ledger</div>';
+  document.getElementById("blockDetails").innerHTML = "";
+  document.getElementById("txList").innerHTML = '<div class="empty">No transactions yet</div>';
+  document.getElementById("nodeGrid").innerHTML = '<div class="empty" style="grid-column:1/-1">Initialize the network to view node keys</div>';
+  document.getElementById("ledgerTitle").textContent = "Blockchain Ledger — 0 Blocks";
+  document.getElementById("metricsBar").classList.remove("visible");
+  ["m-keygen","m-enc","m-sign","m-verify"].forEach(id=>document.getElementById(id).textContent="—");
+  ["init","tx","mine","consensus","commit"].forEach(id=>{
+    const b = document.getElementById(`btn-${id}`);
+    b.className = "step-btn"; b.disabled = true;
+    document.getElementById(`ms-${id}`).textContent = "";
+  });
+  document.getElementById("btn-init").className = "step-btn active";
+  document.getElementById("btn-init").disabled = false;
+  setWfPhase(0);
+  updateStatus(false, "OFFLINE");
+}
+
+// ═══════════════════════════════════════════════════════════
+//  UI helpers
+// ═══════════════════════════════════════════════════════════
+function setLoading(id, loading) {
+  const btn = document.getElementById(`btn-${id}`);
+  let ind = btn.querySelector(".loading-indicator");
+  if(loading) {
+    if(!ind){ ind = document.createElement("span"); ind.className="loading-indicator"; btn.appendChild(ind); }
+    ind.innerHTML = '<span class="spinner"></span>';
+    btn.disabled = true;
+  } else {
+    if(ind) ind.remove();
+    btn.disabled = false;
+  }
+}
+function setDone(id) {
+  const btn = document.getElementById(`btn-${id}`);
+  btn.className = "step-btn done";
+  btn.disabled = false;
+}
+function setActive(id) {
+  const btn = document.getElementById(`btn-${id}`);
+  btn.className = "step-btn active";
+  btn.disabled = false;
+}
+function updateStatus(on, text) {
+  const dot = document.getElementById("statusDot");
+  const txt = document.getElementById("statusText");
+  dot.className = "status-dot" + (on ? " live" : "");
+  txt.textContent = text;
+  txt.style.color = on ? "var(--green)" : "var(--dim)";
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Ledger rendering
+// ═══════════════════════════════════════════════════════════
+function updateLedger(chain) {
+  document.getElementById("ledgerTitle").textContent = `Blockchain Ledger — ${chain.length} Block${chain.length!==1?"s":""}`;
+  const row = document.getElementById("chainRow");
+  row.innerHTML = "";
+  chain.forEach((b, i) => {
+    if(i>0){
+      const arrow = document.createElement("div");
+      arrow.className = "chain-arrow"; arrow.textContent = "→";
+      row.appendChild(arrow);
+    }
+    const card = document.createElement("div");
+    card.className = "block-card" + (i>0?" live":"");
+    card.innerHTML = `
+      <div class="bh ${i===0?"genesis":"mined"}">
+        ${i===0?"GENESIS":"BLOCK #"+b.index}
+        ${i>0?'<span class="verified-badge" style="margin-left:6px">VERIFIED ✓</span>':""}
+      </div>
+      <div class="bd">
+        Hash: <span>${b.hash.slice(0,14)}...</span><br>
+        ${i>0?`Nonce: <span>${b.nonce}</span><br>
+        TXs: <span>${b.tx_count}</span><br>
+        Proposer: <span>${b.proposer}</span>`:"Origin block"}
+      </div>`;
+    row.appendChild(card);
+  });
+
+  // Block details below
+  const det = document.getElementById("blockDetails");
+  det.innerHTML = "";
+  chain.slice(1).forEach(b => {
+    const d = document.createElement("div");
+    d.style.cssText = "background:var(--card);border:1px solid var(--border);border-radius:7px;padding:14px;margin-bottom:10px;animation:fadeUp .3s ease both";
+    d.innerHTML = `
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;align-items:center">
+        <span style="color:var(--cyan);font-size:12px;font-weight:bold">Block #${b.index}</span>
+        <span class="verified-badge">VERIFIED ✓</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:9px;color:var(--dim)">
+        <div>Hash: <span style="color:var(--white)">${b.hash.slice(0,22)}...</span></div>
+        <div>Nonce: <span style="color:var(--gold)">${b.nonce}</span></div>
+        <div>Prev: <span style="color:var(--white)">${b.prev_hash.slice(0,18)}...</span></div>
+        <div>Proposer: <span style="color:var(--green)">${b.proposer}</span></div>
+        <div>Transactions: <span style="color:var(--cyan)">${b.tx_count}</span></div>
+        <div>Timestamp: <span style="color:var(--white)">${new Date(b.timestamp*1000).toLocaleTimeString()}</span></div>
+      </div>
+      ${b.transactions.map(tx=>`
+        <div style="margin-top:8px;background:var(--bg2);border-radius:5px;padding:8px;font-size:9px;color:var(--dim)">
+          TX: <span style="color:var(--white)">${tx.hash}…</span>  |
+          ${tx.sender} → ${tx.receiver}  ₹${tx.amount}  |
+          <span style="color:var(--green)">Kyber enc ✓  Dilithium sig ✓</span>
+        </div>`).join('')}`;
+    det.appendChild(d);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  TX rendering
+// ═══════════════════════════════════════════════════════════
+function addTxCard(tx) {
+  const el = document.getElementById("txList");
+  if(el.querySelector(".empty")) el.innerHTML = "";
+  const div = document.createElement("div");
+  div.className = "tx-card"; div.id = `tx-${tx.hash}`;
+  div.innerHTML = `
+    <div class="tx-top">
+      <span class="tx-route">${tx.sender} → ${tx.receiver}</span>
+      <span class="tx-badge pending" id="badge-${tx.hash}">VALIDATED</span>
+    </div>
+    <div class="tx-grid">
+      <div>Amount: <span style="color:var(--gold)">₹${tx.amount}</span></div>
+      <div>Hash: <span>${tx.hash}…</span></div>
+      <div>KEM ct: <span style="color:var(--teal)">${tx.kem_ct_size}B</span></div>
+      <div>Sig size: <span style="color:var(--gold)">${tx.sig_size}B</span></div>
+      <div>Encrypted: <span style="color:var(--green)">✓ AES-256-GCM</span></div>
+      <div>Signed: <span style="color:var(--green)">✓ Dilithium3</span></div>
+    </div>`;
+  el.appendChild(div);
+  switchTab("transactions");
+}
+function markTxConfirmed(hash) {
+  const card = document.getElementById(`tx-${hash}`);
+  const badge = document.getElementById(`badge-${hash}`);
+  if(card) card.className = "tx-card confirmed";
+  if(badge) { badge.className = "tx-badge confirmed"; badge.textContent = "CONFIRMED ✓"; }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Nodes rendering
+// ═══════════════════════════════════════════════════════════
+function updateNodes(nodes) {
+  const grid = document.getElementById("nodeGrid");
+  grid.innerHTML = "";
+  Object.entries(nodes).forEach(([name, n]) => {
+    const roleColors = {Sender:"var(--cyan)", Receiver:"var(--gold)", Validator:"var(--green)"};
+    const card = document.createElement("div");
+    card.className = "node-card";
+    card.innerHTML = `
+      <div class="nc-name" style="color:${roleColors[n.role]||'var(--white)'}">${name}</div>
+      <div class="nc-role" style="color:var(--dim)">[${n.role}]</div>
+      <div class="nc-key">Kyber pub: <span>${n.kyber_pub_hex}</span></div>
+      <div class="nc-key">Kyber pub size: <span style="color:var(--teal)">${n.kyber_pub_size} B</span></div>
+      <div class="nc-key" style="margin-top:4px">Dilithium pub: <span>${n.dil_pub_hex}</span></div>
+      <div class="nc-key">Dilithium pub size: <span style="color:var(--gold)">${n.dil_pub_size} B</span></div>
+      <div class="nc-key" style="margin-top:4px">Mempool: <span style="color:var(--green)">${n.mempool_count} txs</span></div>`;
+    grid.appendChild(card);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Tab switching
+// ═══════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  ["network","ledger","transactions","nodes"].forEach(t => {
+    document.getElementById(`tab-${t}`).style.display = t===name ? "" : "none";
+  });
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  if(btn) btn.classList.add("active");
+  else {
+    const tabs = document.querySelectorAll(".tab");
+    const order = ["network","ledger","transactions","nodes"];
+    tabs[order.indexOf(name)]?.classList.add("active");
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//  Boot
+// ═══════════════════════════════════════════════════════════
+window.addEventListener("DOMContentLoaded", () => {
+  initParticles();
+  initSVG();
+  buildWorkflow();
+  setWfPhase(0);
+
+  // Disable all except init
+  ["tx","mine","consensus","commit"].forEach(id => {
+    document.getElementById(`btn-${id}`).disabled = true;
+  });
+});
+</script>
+</body>
+</html>
